@@ -16,9 +16,9 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 def load_cities(path_csv):
-    logger.info(f"Esta cargando las ciudades desde: {path_csv}")
+    logger.info(f"Loading cities from:  {path_csv}")
     df = pd.read_csv(path_csv)
-    logger.info(f"CSV cargado exitosamente - {len(df)} ciudades encontradas")
+    logger.info(f"CSV loaded successfully - {len(df)} cities found")
     return df
 
 def normalize_city(text):
@@ -31,33 +31,33 @@ def search_city(df,name):
     normalize_name = normalize_city(name)
     results = df[df["city"].apply(lambda x: normalize_city(str(x))).str.contains(normalize_name, na=False)]
     results = results.sort_values("population", ascending=False)
-    logger.info(f"Busqueda '{name} - {len(results)} resultado(s) encontrado(s)")
+    logger.info(f"Search '{name}' - {len(results)} result(s) found")
     return results
 
 def select_city(results, name_input):
     if results.empty:
-        logger.warning(f"No se encontraron resultados para '{name_input}'")
+        logger.warning(f"No results found for '{name_input}'")
         return None
 
     if len(results) == 1:
         city = results.iloc[0]
-        logger.info(f"Un solo resultado - seleccionado automaticamente: {city['city']}, {city['country']}")
+        logger.info(f"Single result - auto-selected: {city['city']}, {city['country']}")
         return city
     
-    print (f"\nSe encontraron {len(results)} ciudades: \n")
+    print (f"\n{len(results)} cities found:\n")
     for i, (_, row) in enumerate(results.iterrows()):
         population = f"{int(row['population']):,}" if pd.notna(row['population']) else "unknown"
-        print(f" [{i+1}] {row['city']}, {row['country']} - {row['admin_name']} - Poblacion: {population}")
+        print(f" [{i+1}] {row['city']}, {row['country']} - {row['admin_name']} - Population: {population}")
     
 
     print()
     while True:
-        selection = input(f"Elige un numero: (1 - {len(results)}):").strip()
+        selection = input(f"Choose a number: (1 - {len(results)}):").strip()
         if selection.isdigit() and 1 <= int(selection) <= len(results):
             city = results.iloc[int(selection) - 1]
-            logger.info(f"El usuario ha seleccionado: {city['city']}, {city['country']}")
+            logger.info(f"User selected: {city['city']}, {city['country']}")
             return city
-        logger.warning(f"Entrada invalida: '{selection}' - Intenta de nuevo")
+        logger.warning(f"Invalid input: '{selection}' - Please try again")
 
 def obtain_weather(city):
     lat = city["lat"]
@@ -72,33 +72,34 @@ def obtain_weather(city):
         f"&hourly=relative_humidity_2m,apparent_temperature"
     )
 
-    logger.info(f"Llamando a la API para la busqueda de la temperatura de {name}, {country}")
+    logger.info(f"Fetching weather for {name}, {country} - URL: {url}")
 
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
     except requests.exceptions.ConnectionError:
-        logger.error("No hay conexion a internet")
+        logger.error("No internet connection - Unable to fetch weather data")
         return None
     except requests.exceptions.Timeout:
-        logger.error("La Api tardo mucho en responder")
+        logger.error("The API took too long to respond")
         return None
     except requests.exceptions.HTTPError as e:
         logger.error(f"Error HTTP: {e}")
         return None
     
-    #Extraemos Current Weather para normalizar el tiempo
+    #Extract current weather to normalize time
+    
     cw = data["current_weather"]
 
     current_hour = cw["time"][:13] + ":00"
 
-    #Buscador de la hora en Hourly
+    #Find matching hour in hourly data - if not found, use index 0 and log a warning
 
     try:
         index = data["hourly"]["time"].index(current_hour)
     except ValueError:
-        logger.warning("No se encontro la hora actual en hourly - usando indice 0")
+        logger.warning("Current hour not found in hourly data - using index 0")
         index = 0
     
     return {
@@ -121,7 +122,7 @@ def save_historical(weather, output_path):
             writer.writeheader()
 
         writer.writerow(weather)
-        logger.info(f"Resultado guardado en {output_path}")
+        logger.info(f"Result saved to {output_path}")
 
 
 def day_night(is_day):    return "Day" if is_day == 1 else "Night"
@@ -140,14 +141,14 @@ def show_table(weather):
 def main(args):
     df = load_cities(args.input)
 
-    city_input = input("Escribe el nombre de la ciudad de la cual quieres consultar el clima: ").strip()
+    city_input = input("Enter the name of the city: ").strip()
 
     if not city_input:
-        logger.error("No escribiste ningún nombre. Cerrando el script.")
+        logger.error("No city name entered. Closing the script.")
         return
     
     if len(city_input) < 2:
-        logger.error("Escribe al menos 2 caracteres para buscar.")
+        logger.error("Enter at least 2 characters to search.")
         return
 
     results = search_city(df, city_input)
@@ -159,7 +160,7 @@ def main(args):
     weather = obtain_weather(city)
     
     if weather is None:
-        logger.error("No se pudo obtener el clima - Abortando")
+        logger.error("No weather data obtained - Aborting")
         return
     
     weather["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -176,7 +177,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args)
 
-#python CSVyAPI/weather_pipeline.py --input CSVyAPI/worldcities_copy.csv --output CSVyAPI/weather_results.csv
+
 
 
 
