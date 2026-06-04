@@ -8,7 +8,7 @@ import os
 from tabulate import tabulate
 from datetime import datetime
 
-#Config del Logger
+#Config Logger
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
@@ -89,7 +89,7 @@ def obtain_weather(city):
         return None
     
     #Extract current weather to normalize time
-    
+
     cw = data["current_weather"]
 
     current_hour = cw["time"][:13] + ":00"
